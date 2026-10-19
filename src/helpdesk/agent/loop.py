@@ -92,14 +92,26 @@ class HelpdeskAgent:
         flags = input_screen.screen_user_message(user_text, self.state.verified_employee_id)
         for decision in flags:
             self._record_decision(turn, decision)
-        notes = self._notes_for_next_turn + [d.note_for_model for d in flags if d.note_for_model]
+        carried_notes = self._notes_for_next_turn
+        notes = carried_notes + [d.note_for_model for d in flags if d.note_for_model]
         self._notes_for_next_turn = []
 
+        checkpoint = len(self.messages)
         self.messages.append({"role": "user", "content": user_text})
         if notes:
             self.messages.append({"role": "system", "content": "\n".join(notes)})
 
-        model_reply = self._run_model_loop(turn, user_text)
+        try:
+            model_reply = self._run_model_loop(turn, user_text)
+        except Exception as exc:
+            # The model API failed mid-turn (outage, rate limit, no credit...). Drop this turn's unfinished
+            # messages so the history stays valid (a system note must be followed by an assistant turn),
+            # keep any carried-over notes for next time, and let the caller show an error.
+            del self.messages[checkpoint:]
+            self._notes_for_next_turn = carried_notes
+            self.tracer.log("error", turn=self.state.user_turn, kind="model_api_error",
+                            detail=f"{type(exc).__name__}: {str(exc)[:300]}")
+            raise
 
         # Layer 5: escalation backstop
         required = escalation.mandatory_reason([d.rule for d in flags], self.state)

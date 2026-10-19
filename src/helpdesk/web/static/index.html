@@ -175,7 +175,10 @@ async function send(text) {
   try {
     const res = await fetch("/api/chat", {method: "POST", headers: {"Content-Type": "application/json"},
                                           body: JSON.stringify({session_id: sessionId, message: text})});
-    if (!res.ok) throw new Error(await res.text());
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.detail || res.statusText);
+    }
     const data = await res.json();
     sessionId = data.session_id;
     pending.remove();

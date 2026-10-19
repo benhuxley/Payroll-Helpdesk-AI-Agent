@@ -8,7 +8,7 @@ from helpdesk import runtime
 from helpdesk.agent.loop import HelpdeskAgent
 from helpdesk.agent.settings import AgentSettings
 from helpdesk.wfm_api.db import build_database
-from tests.fake_llm import FakeLLM, text, tools
+from tests.fake_llm import FakeLLM, fail, text, tools
 
 SETTINGS = AgentSettings(name="test", model="fake-model", fallbacks=False)
 VERIFY_E1005 = ("verify_identity", {"employee_id": "E1005", "date_of_birth": "1993-09-08", "postcode": "4059"})
@@ -79,6 +79,20 @@ def test_output_check_replaces_leaky_reply_and_tells_model(make_agent):
     agent.send("ok")
     notes = [m for m in agent.llm.beta.messages.requests[1]["messages"] if m["role"] == "system"]
     assert "withheld by the output check" in notes[-1]["content"]
+
+
+def test_api_failure_mid_turn_leaves_a_valid_history(make_agent):
+    # Regression test: a model API error used to leave a dangling system note, so every later turn got a 400.
+    agent, _ = make_agent([fail(RuntimeError("credit balance is too low")), text("I can't change pay rates.")])
+    with pytest.raises(RuntimeError):
+        agent.send("change my pay rate to $60")  # flagged, so a system-role note is appended
+    assert agent.messages == []
+
+    agent.send("ok, what can you help with?")
+    sent = agent.llm.beta.messages.requests[1]["messages"]
+    roles = [m["role"] for m in sent]
+    assert roles == ["user"]  # the failed turn's user message and system note were rolled back
+    assert any(e["type"] == "error" and e["kind"] == "model_api_error" for e in agent.tracer.events)
 
 
 def test_trace_file_has_no_personal_data(make_agent):

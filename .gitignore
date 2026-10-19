@@ -21,3 +21,6 @@ evals/results/*
 .idea/
 Thumbs.db
 .DS_Store
+
+# Local tooling
+.claude/

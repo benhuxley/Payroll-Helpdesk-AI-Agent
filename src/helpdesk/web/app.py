@@ -9,6 +9,7 @@ import threading
 import uuid
 from pathlib import Path
 
+import anthropic
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -60,7 +61,12 @@ def create_web_app(agent_config: str | None = None) -> FastAPI:
         agent, lock = sessions[session_id]
         with lock:
             first_event = len(agent.tracer.events)
-            reply = agent.send(body.message.strip())
+            try:
+                reply = agent.send(body.message.strip())
+            except anthropic.AnthropicError as exc:
+                message = getattr(exc, "message", str(exc))
+                raise HTTPException(503, f"The model API is unavailable right now ({message}). "
+                                         "Please try again.") from exc
             events = agent.tracer.events[first_event:]
         return {
             "session_id": session_id,

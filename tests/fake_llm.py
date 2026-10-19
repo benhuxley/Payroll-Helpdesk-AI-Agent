@@ -39,10 +39,17 @@ class _Messages:
         self.requests: list[dict] = []
 
     def create(self, **params):
-        self.requests.append(params)
+        self.requests.append({**params, "messages": list(params["messages"])})  # snapshot, like a real request
         if not self.script:
             raise AssertionError("FakeLLM script ran out of steps")
-        return _message(self.script.pop(0))
+        step = self.script.pop(0)
+        if "raise" in step:
+            raise step["raise"]
+        return _message(step)
+
+
+def fail(exc: Exception) -> dict:
+    return {"raise": exc}
 
 
 class FakeLLM:
