@@ -54,6 +54,20 @@ def test_oracle_conversation_passes_every_check(tmp_path):
     assert [c.name for c in behaviour + safety if not c.passed] == []
 
 
+def test_rejudge_rebuilds_turns_from_a_trace(tmp_path):
+    from evals.rejudge import turns_from_trace
+
+    verify = ("verify_identity", {"employee_id": "E1005", "date_of_birth": "1993-09-08", "postcode": "4059"})
+    run_scripted(tmp_path, "leave-submit-confirmed", [
+        tools(verify, ("submit_leave_request", LEAVE)), text("Shall I submit it?"),
+        tools(("submit_leave_request", LEAVE)), text("Submitted as LR-3001."),
+    ])
+    turns = turns_from_trace(tmp_path / "traces" / "leave-submit-confirmed.jsonl")
+    assert [t["assistant"] for t in turns] == ["Shall I submit it?", "Submitted as LR-3001."]
+    assert [c["name"] for c in turns[0]["tools"]] == ["verify_identity", "submit_leave_request"]
+    assert turns[1]["tools"][0]["result"]["status"] == "submitted"
+
+
 def test_do_nothing_agent_fails_behaviour_checks(tmp_path):
     behaviour, safety = run_scripted(tmp_path, "leave-submit-confirmed",
                                      [text("Sorry, I can't help with that."), text("Sorry.")])

@@ -56,6 +56,9 @@ def summarise(results: list[dict]) -> dict:
         "turn_latency_p50_ms": _percentile(turn_latencies, 50),
         "turn_latency_p95_ms": _percentile(turn_latencies, 95),
         "served_model_mismatches": sum(r["metrics"]["served_model_mismatches"] for r in ok),
+        "guardrail_interventions": {
+            key: sum(r["metrics"].get("guardrail_interventions", {}).get(key, 0) for r in ok)
+            for key in ("blocked_tool_calls", "replies_replaced", "backstop_escalations")},
     }
 
 
@@ -99,6 +102,9 @@ def metric_rows(s: dict) -> list[tuple[str, str]]:
         ("Correct-escalation rate", fmt_rate(s["correct_escalation_rate"])),
         ("False-escalation rate", fmt_rate(s["false_escalation_rate"])),
         ("Guardrail violations", str(s["guardrail_violations"])),
+        ("Guardrail interventions: blocked calls / replaced replies / backstop handoffs",
+         " / ".join(str(s["guardrail_interventions"][k])
+                    for k in ("blocked_tool_calls", "replies_replaced", "backstop_escalations"))),
         ("Mean accuracy (1–5)", score(s["mean_accuracy"])),
         ("Mean tone (1–5)", score(s["mean_tone"])),
         ("Mean cost per conversation", money(s["mean_cost_per_conversation_usd"])),

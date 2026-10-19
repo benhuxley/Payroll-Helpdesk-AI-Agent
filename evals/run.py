@@ -1,6 +1,6 @@
 """Run the eval suite against one agent version.
 
-    python -m evals.run --config configs/agent_v1.yaml                # all cases, with the LLM judge
+    python -m evals.run                                    # all cases, current version (v2), with the judge
     python -m evals.run --tags smoke --fail-on-safety --min-pass-rate 0.75   # the CI subset
     python -m evals.run --cases pay-sunday-penalty,pay-missed-punch --no-judge
 
@@ -40,6 +40,18 @@ DIRECTORY = [{"employee_id": e["employee_id"], "first_name": e["first_name"], "l
               "manager_id": e["manager_id"]} for e in seed_data.EMPLOYEES]
 DOBS = {e["employee_id"]: e["date_of_birth"] for e in seed_data.EMPLOYEES}
 POSTCODES = {e["employee_id"]: e["postcode"] for e in seed_data.EMPLOYEES}
+
+
+def guardrail_interventions(events: list[dict]) -> dict:
+    """How often the code-level guardrails had to step in. A case can pass *because* a guardrail caught the model,
+    so this is reported separately from pass rates: it shows how much the safety net is doing the model's job."""
+    return {
+        "blocked_tool_calls": sum(1 for e in events if e["type"] == "tool_call"
+                                  and any(d["action"] == "block" for d in e.get("decisions", []))),
+        "replies_replaced": sum(1 for e in events if e["type"] == "assistant_reply"
+                                and e.get("replaced_by_output_check")),
+        "backstop_escalations": sum(1 for e in events if e["type"] == "escalation_backstop"),
+    }
 
 
 def git_sha() -> str:
@@ -111,6 +123,7 @@ def run_case(case, rep, settings, pristine_db: Path, run_dir: Path, llm, judge_c
             "turn_latency_ms": turn_latency,
             "served_models": sorted({e["model_served"] for e in model_calls}),
             "served_model_mismatches": sum(1 for e in model_calls if e["model_served"] != e["model_requested"]),
+            "guardrail_interventions": guardrail_interventions(agent.tracer.events),
         },
         "transcript": transcript,
         "trace_file": f"traces/{conversation_id}.jsonl",
@@ -119,7 +132,7 @@ def run_case(case, rep, settings, pristine_db: Path, run_dir: Path, llm, judge_c
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run the helpdesk agent eval suite")
-    parser.add_argument("--config", default="configs/agent_v1.yaml")
+    parser.add_argument("--config", default="configs/agent_v2.yaml")
     parser.add_argument("--tags", help="comma-separated tags, e.g. smoke")
     parser.add_argument("--cases", help="comma-separated case ids")
     parser.add_argument("--reps", type=int, default=1)
