@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Local config and secrets - never commit keys
+.env
+
+# Generated at runtime
+data/*.db
+traces/
+evals/results/*
+!evals/results/.gitkeep
+!evals/results/baseline/
+
+# Editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
