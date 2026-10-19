@@ -52,7 +52,38 @@ flowchart LR
 Each layer is a small module in [`src/helpdesk/guardrails/`](src/helpdesk/guardrails) with its own unit tests.
 
 ## Eval results
-<!-- EVAL_RESULTS: filled in from the latest full run -->
+Latest full runs, all scored by the same judge (run 19 Oct 2026). **v2 is the current version.**
+
+| Metric (PRD target) | v1 | **v2 (current)** | Candidate: Sonnet 5.5 | Candidate: Haiku 5.5 |
+|---|---|---|---|---|
+| Conversations run | 86 (43 × 2) | **86 (43 × 2)** | 43 | 43 |
+| Overall pass rate (95% CI) | 95% (89–98%) | **100% (96–100%)** | 100% (92–100%) | 95% (85–99%) |
+| Resolution rate (≥ 80%) | 96% | **100%** | 100% | 96% |
+| Correct-escalation rate (≥ 95%) | 100% (14/14) | **100% (14/14)** | 100% (7/7) | 100% (7/7) |
+| False-escalation rate (≤ 10%) | 0% (0/52) | **0% (0/52)** | 0% (0/26) | 0% (0/26) |
+| **Guardrail violations (= 0)** | 0 | **0** | 0 | 0 |
+| Guardrail interventions (blocked calls / replaced replies / backstop handoffs) | 0 / 0 / 0 | **0 / 0 / 0** | 0 / 0 / **2** | 0 / 0 / 0 |
+| Judge accuracy / tone (≥ 4.0) | 4.57 / 4.28 | **4.67 / 4.19** | 4.79 / 4.40 | 4.67 / 4.28 |
+| Cost per conversation | $0.043 | **$0.043** | $0.023 | $0.001 |
+| Turn latency p50 / p95 | 7.6 s / 21.3 s | **7.2 s / 19.6 s** | 6.4 s / 18.5 s | 4.7 s / 14.1 s |
+
+What the parallel runs showed ([reports](docs/comparisons/), [write-up](docs/eval-failure-writeup.md)):
+- **v1 → v2 fixed two real agent failures, with no regressions:** it sometimes worked out leave hours itself instead of
+  using the roster (telling a part-timer he was 25.5 h short when the gap was 10.5 h), and it made up HR process
+  ("rates are tied to your classification and pay point…"). Both were fixed with prompt changes only.
+  [Report](docs/comparisons/v1-vs-v2.md).
+- **Sonnet 5.5 is cheaper and passed everything, but only because the guardrails caught it twice.** With a very
+  angry user and a user in hardship it didn't hand off, and the escalation backstop did. I wouldn't switch to it
+  until it hands off on its own. [Report](docs/comparisons/v2-vs-sonnet.md).
+- **Haiku 5.5 found a guardrail bug.** The output check was replacing good refusals that repeated a name the user
+  had typed ("I can't look up E1005's leave"). The check was fixed, and the re-run had 0 replacements.
+  [Report](docs/comparisons/haiku-before-vs-after-output-check-fix.md).
+- **The judge needed four rounds of fixes before its scores could be trusted.** Each fix was the same lesson: the
+  judge has to see what the agent saw (the data, the pay rules, the tools). It now agrees with itself on 99% of
+  pass/fail verdicts (85/86) when re-run on the same transcripts.
+
+Example traces: [`docs/example-traces/`](docs/example-traces) (redacted). Pretty-print one with
+`python scripts/show_trace.py docs/example-traces/opus-v2-sunday-penalty.jsonl`.
 
 How the numbers are produced: 43 scripted conversations ([`evals/cases/`](evals/cases)) with human-written ground
 truth. Deterministic checks cover tools, arguments, escalation in both directions and database end state. Safety
@@ -81,6 +112,7 @@ pip install -e ".[dev]"
 | `python -m evals.run` | Full 43-conversation suite with the judge (~$2.50) |
 | `python -m evals.run --config configs/candidate_sonnet.yaml` | Same suite, candidate agent version |
 | `python -m evals.compare A/results.json B/results.json` | Parallel-run reconciliation between two runs |
+| `python -m evals.rejudge evals/results/<run> --run-id <new>` | Re-score a run with the current judge (fair comparisons, judge consistency) |
 | `python scripts/show_trace.py traces/<id>.jsonl` | Pretty-print a conversation trace |
 | `python -m evals.judge --selftest` | Check the judge passes a good answer and fails bad ones |
 

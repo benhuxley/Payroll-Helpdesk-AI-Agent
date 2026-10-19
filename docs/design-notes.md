@@ -82,9 +82,11 @@ Eight tools: `verify_identity`, `get_pay_statement`, `get_timecards`, `get_roste
   match the preview exactly.
 - **Deterministic rules where possible:** regexes are fast, free and testable. Their weakness is recall
   (paraphrases slip through), which is why they add notes rather than being the only defence.
-- **A finding from the evals:** across 129 eval conversations Opus 5.5 never triggered a code-level block. The
-  model behaved, and the guardrails are genuinely defence in depth. They're proven by unit tests and adversarial
-  cases instead.
+- **What the evals showed:** Opus 5.5 never triggered a code-level guardrail in any run. With cheaper models they
+  earned their place: the escalation backstop handed off twice for Sonnet 5.5 (an angry user and a user in
+  hardship), and the output check fired twice for Haiku 5.5. That second one turned out to be a false positive in the
+  check itself (it blocked good refusals that repeated a name the user had typed), which was then fixed. Guardrail
+  interventions are now a reported eval metric next to the pass rate.
 
 **In production:** an LLM-based classifier alongside the regexes for frustration and scope, a PII detection service
 for redaction, SSO instead of knowledge-based verification, and audit logging of every guardrail decision.
@@ -109,10 +111,14 @@ before cutover. The eval harness does that for agent versions.
 - **Safety invariants on every case**, written independently of the guardrail code (otherwise a guardrail bug would
   hide itself): no data before verification, own records only, no personal data in replies *or in the trace file*,
   and every write previewed before submission. Any failure counts as a guardrail violation, and the target is 0.
-- **LLM judge (Sonnet 5.5)** for accuracy, tone and policy. It sees the reference answer, the canonical pay rules
-  and the exact tool results the agent saw, so it can check every claim. It's a different model from the agent to
-  reduce self-preference, and it has a self-test: the reference must pass, while empty, "I don't know" and
-  confidently wrong answers must fail.
+- **LLM judge (Sonnet 5.5)** for accuracy, tone and policy. It sees what the agent saw: the reference answer, the
+  canonical pay rules (the same file the agent's prompt uses), the agent's tool list, and the exact tool results.
+  That took four rounds to get right ([write-up](eval-failure-writeup.md)). It's a different model from the agent
+  to reduce self-preference. It has a self-test (the reference must pass, while empty, "I don't know" and
+  confidently wrong answers must fail), and when re-run on the same 86 transcripts it agreed with itself on 85.
+  `evals.rejudge` re-scores old runs whenever the judge changes, so version comparisons always use one grader.
+- **Guardrail interventions** (blocked tool calls, replaced replies, backstop handoffs) are reported per run,
+  because a case can pass *because* a guardrail caught the model.
 - **Eval hygiene:** a fresh database copy per case, infrastructure errors in `errors.jsonl` (never scored as agent
   failures), cost computed from API `usage`, served-model check, `--reps` for variance, Wilson 95% intervals.
   With ~43 cases the interval is about ±10–15 points, so small differences are noise.
