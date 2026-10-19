@@ -1,0 +1,11 @@
+# v2: v1 plus two prompt fixes found by the eval suite (see docs/eval-failure-writeup.md):
+#   - never calculate leave hours yourself; get them from the roster-based preview
+#   - don't describe policies or processes that aren't in the instructions or tool data
+# Same model, effort and tools as v1, so a comparison isolates the prompt change.
+name: v2-opus-5.5
+model: claude-opus-5-5
+effort: medium
+max_tokens: 16000
+system_prompt_file: system_v2.md
+fallbacks: true
+max_steps: 10

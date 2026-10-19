@@ -2,7 +2,7 @@
 
     python -m helpdesk.cli                 # in-process mock WFM, fresh synthetic data each run
     python -m helpdesk.cli --remote        # talk to a running mock WFM server (WFM_BASE_URL)
-    python -m helpdesk.cli --config configs/agent_v2.yaml
+    python -m helpdesk.cli --config configs/candidate_sonnet.yaml
 
 Type /quit to exit. The trace path is printed at the start, so you can inspect it with scripts/show_trace.py.
 """

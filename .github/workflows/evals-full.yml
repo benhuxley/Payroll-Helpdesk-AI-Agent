@@ -6,7 +6,7 @@ on:
     inputs:
       config:
         description: Agent version to test (a file in configs/)
-        default: configs/agent_v1.yaml
+        default: configs/agent_v2.yaml
       reps:
         description: Repetitions per case
         default: "1"
