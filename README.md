@@ -1,6 +1,6 @@
 # Payroll Helpdesk Agent
 
-[![CI](https://github.com/benhuxley/payroll-helpdesk-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/benhuxley/payroll-helpdesk-agent/actions/workflows/ci.yml)
+[![CI](https://github.com/benhuxley/Payroll-Helpdesk-AI-Agent/actions/workflows/ci.yml/badge.svg)](https://github.com/benhuxley/Payroll-Helpdesk-AI-Agent/actions/workflows/ci.yml)
 
 A customer-support AI agent for an employee **payroll & HR helpdesk**, built the way I'd deploy one for a customer:
 grounded in the customer's systems through tool calls, wrapped in layered guardrails, traced end to end, and
@@ -64,8 +64,8 @@ never as agent failures.
 Requires Python 3.12+ and an Anthropic API key in your environment (`ANTHROPIC_API_KEY`).
 
 ```bash
-git clone https://github.com/benhuxley/payroll-helpdesk-agent.git
-cd payroll-helpdesk-agent
+git clone https://github.com/benhuxley/Payroll-Helpdesk-AI-Agent.git
+cd Payroll-Helpdesk-AI-Agent
 python -m venv .venv
 .venv/Scripts/activate        # Windows (PowerShell: .venv\Scripts\Activate.ps1)
 # source .venv/bin/activate   # macOS / Linux
