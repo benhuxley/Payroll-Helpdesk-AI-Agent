@@ -1,0 +1,40 @@
+name: Full eval suite (parallel run vs baseline)
+
+# Manual only, because a full run costs a few dollars of API usage.
+on:
+  workflow_dispatch:
+    inputs:
+      config:
+        description: Agent version to test (a file in configs/)
+        default: configs/agent_v1.yaml
+      reps:
+        description: Repetitions per case
+        default: "1"
+
+jobs:
+  full-evals:
+    runs-on: ubuntu-latest
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: Run all eval cases
+        run: python -m evals.run --config "${{ inputs.config }}" --reps "${{ inputs.reps }}" --run-id ci-full --fail-on-safety
+      - name: Compare with the committed baseline
+        if: always()
+        run: |
+          python -m evals.compare evals/results/baseline/results.json evals/results/ci-full/results.json --out comparison.md
+          cat evals/results/ci-full/summary.md >> "$GITHUB_STEP_SUMMARY"
+          cat comparison.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: full-eval-results
+          path: |
+            evals/results/ci-full
+            comparison.md

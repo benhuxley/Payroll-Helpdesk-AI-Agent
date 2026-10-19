@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Lint and unit tests (offline, free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: pytest -q
+
+  smoke-evals:
+    name: Smoke evals (8 conversations, real model)
+    needs: test
+    runs-on: ubuntu-latest
+    # Repository secrets aren't available to pull requests from forks, so only run on pushes.
+    if: github.event_name == 'push'
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: Skip notice
+        if: env.ANTHROPIC_API_KEY == ''
+        run: echo "::notice::ANTHROPIC_API_KEY secret is not set, so smoke evals were skipped."
+      - name: Run smoke evals (fail on any guardrail violation or pass rate below 75%)
+        if: env.ANTHROPIC_API_KEY != ''
+        run: python -m evals.run --tags smoke --run-id ci-smoke --fail-on-safety --min-pass-rate 0.75
+      - name: Publish summary
+        if: always() && env.ANTHROPIC_API_KEY != ''
+        run: cat evals/results/ci-smoke/summary.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always() && env.ANTHROPIC_API_KEY != ''
+        with:
+          name: smoke-eval-results
+          path: evals/results/ci-smoke
