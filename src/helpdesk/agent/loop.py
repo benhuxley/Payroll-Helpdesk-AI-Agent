@@ -121,8 +121,9 @@ class HelpdeskAgent:
             model_reply = self._backstop_escalate(required, user_text, model_reply)
 
         # Layer 4: output check
+        everything_user_typed = "\n".join(t.user_text for t in self.turns)
         reply, out_decisions = output_check.check_reply(model_reply, self.state.verified_employee_id,
-                                                        self.directory)
+                                                        self.directory, everything_user_typed)
         for decision in out_decisions:
             self._record_decision(turn, decision)
         if reply != model_reply:

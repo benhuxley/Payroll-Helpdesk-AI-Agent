@@ -6,7 +6,10 @@ Rules:
   - sensitive_identifier: TFN-like or bank-like numbers, or masked TFN/bank strings
   - dob_echo: anything that looks like a date of birth (years 1930-2010)
   - data_before_verification: dollar amounts before the user is verified (except published allowance rates)
-  - other_employee_id / other_employee_name: anyone other than the verified employee (or their own manager)
+  - other_employee_id / other_employee_name: anyone other than the verified employee (or their own manager).
+    Exception: a name or ID the user typed themselves may be repeated in a reply that contains no dollar
+    amounts, e.g. "I can't look up E1005's leave". The risk is data about another person, not their name.
+    (Found by the Haiku eval run: blocking those refusals replaced good answers with a generic one.)
 """
 
 import re
@@ -15,8 +18,11 @@ from helpdesk.guardrails.decisions import GuardrailDecision
 
 LAYER = "output_check"
 
-SAFE_REPLY = ("Sorry, I can't share that information here. I can help with your own pay, timecards, roster "
-              "and leave once you're verified, or I can pass your question to the payroll team.")
+SAFE_REPLY_UNVERIFIED = ("Sorry, I can't share that information here. I can help with your own pay, timecards, "
+                         "roster and leave once you're verified, or I can pass your question to the payroll team.")
+SAFE_REPLY_VERIFIED = ("Sorry, I can't share that information here. I can only help with your own pay, timecards, "
+                       "roster and leave, or I can pass your question to the payroll team.")
+SAFE_REPLY = SAFE_REPLY_UNVERIFIED  # kept for callers that don't know the state
 
 # Amounts that come from the published pay rules, so they're fine to mention before verification.
 PUBLIC_AMOUNTS = {"18.40"}
@@ -35,24 +41,30 @@ DOB_LIKE = re.compile(
 )
 
 
-def _name_pattern(name: str) -> re.Pattern:
-    return re.compile(rf"\b{re.escape(name)}\b")
+def _mentions(token: str, text: str, ignore_case: bool = False) -> bool:
+    return re.search(rf"\b{re.escape(token)}\b", text, re.IGNORECASE if ignore_case else 0) is not None
 
 
-def find_violations(text: str, verified_employee_id: str | None, directory: list[dict]) -> list[tuple[str, str]]:
+def find_violations(text: str, verified_employee_id: str | None, directory: list[dict],
+                    user_text: str = "") -> list[tuple[str, str]]:
     violations = []
     if TFN_LIKE.search(text) or BSB_LIKE.search(text) or MASKED.search(text):
         violations.append(("sensitive_identifier", "TFN/bank-like number in reply"))
     if DOB_LIKE.search(text):
         violations.append(("dob_echo", "date-of-birth-like date in reply"))
 
+    has_amounts = bool(MONEY.search(text))
     if not verified_employee_id:
         amounts = {m.replace(",", "") for m in MONEY.findall(text)} - PUBLIC_AMOUNTS
         if amounts:
             violations.append(("data_before_verification", f"dollar amounts before verification: {sorted(amounts)}"))
         return violations
 
+    def user_introduced(token: str) -> bool:
+        return not has_amounts and _mentions(token, user_text, ignore_case=True)
+
     others_ids = {m for m in EMPLOYEE_ID.findall(text)} - {verified_employee_id}
+    others_ids = {i for i in others_ids if not user_introduced(i)}
     if others_ids:
         violations.append(("other_employee_id", f"mentions {sorted(others_ids)}"))
 
@@ -62,17 +74,17 @@ def find_violations(text: str, verified_employee_id: str | None, directory: list
         if person["employee_id"] in allowed:
             continue
         for name in (f"{person['first_name']} {person['last_name']}", person["first_name"]):
-            if _name_pattern(name).search(text):
+            if _mentions(name, text) and not user_introduced(name):
                 violations.append(("other_employee_name", f"mentions another employee ({person['employee_id']})"))
                 break
     return violations
 
 
-def check_reply(text: str, verified_employee_id: str | None, directory: list[dict]) \
+def check_reply(text: str, verified_employee_id: str | None, directory: list[dict], user_text: str = "") \
         -> tuple[str, list[GuardrailDecision]]:
-    """Return (text to show the user, decisions)."""
-    violations = find_violations(text, verified_employee_id, directory)
+    """Return (text to show the user, decisions). user_text: everything the user has typed so far."""
+    violations = find_violations(text, verified_employee_id, directory, user_text)
     if not violations:
         return text, [GuardrailDecision(LAYER, "passed", "allow")]
     decisions = [GuardrailDecision(LAYER, rule, "replace", detail) for rule, detail in violations]
-    return SAFE_REPLY, decisions
+    return (SAFE_REPLY_VERIFIED if verified_employee_id else SAFE_REPLY_UNVERIFIED), decisions

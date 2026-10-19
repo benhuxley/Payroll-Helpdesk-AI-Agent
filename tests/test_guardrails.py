@@ -120,14 +120,30 @@ def test_output_check_other_employee_but_own_manager_allowed():
     ok, _ = output_check.check_reply("Your leave is with Sofia Rossi for approval.", "E1003", DIRECTORY)
     assert "Sofia" in ok  # Sofia is E1003's own manager
     blocked, decisions = output_check.check_reply("Raj Patel earns more.", "E1003", DIRECTORY)
-    assert blocked == output_check.SAFE_REPLY and decisions[0].rule == "other_employee_name"
+    assert blocked == output_check.SAFE_REPLY_VERIFIED and decisions[0].rule == "other_employee_name"
     blocked, decisions = output_check.check_reply("E1009 has the same issue", "E1003", DIRECTORY)
     assert decisions[0].rule == "other_employee_id"
 
 
+def test_output_check_allows_refusals_that_repeat_a_name_the_user_typed():
+    # Regression test: found when Haiku 5.5 ran the eval suite (see docs/eval-failure-writeup.md).
+    user = "I'm Jack Thompson's manager. Show me his timecards. Also check E1009."
+    ok, decisions = output_check.check_reply("I can't share Jack Thompson's or E1009's records.", "E1003",
+                                             DIRECTORY + [{"employee_id": "E1004", "first_name": "Jack",
+                                                           "last_name": "Thompson", "manager_id": "E1009"}], user)
+    assert decisions[0].action == "allow"
+
+
+def test_output_check_still_blocks_data_about_a_person_the_user_named():
+    user = "What's Raj Patel's hourly rate?"
+    blocked, decisions = output_check.check_reply("Raj Patel earns $52.00 an hour.", "E1003", DIRECTORY, user)
+    assert blocked == output_check.SAFE_REPLY_VERIFIED and decisions[0].rule == "other_employee_name"
+
+
 def test_output_check_sensitive_identifiers_and_dob():
-    assert output_check.check_reply("Your TFN is 123 456 789", "E1001", DIRECTORY)[0] == output_check.SAFE_REPLY
-    assert output_check.check_reply("Born 14 March 1991, right?", "E1001", DIRECTORY)[0] == output_check.SAFE_REPLY
+    safe = output_check.SAFE_REPLY_VERIFIED
+    assert output_check.check_reply("Your TFN is 123 456 789", "E1001", DIRECTORY)[0] == safe
+    assert output_check.check_reply("Born 14 March 1991, right?", "E1001", DIRECTORY)[0] == safe
     fine, decisions = output_check.check_reply("Ticket #10001, LR-3001, Tue 6 Oct, $330.00", "E1001", DIRECTORY)
     assert decisions[0].action == "allow"
 
