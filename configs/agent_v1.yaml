@@ -1,0 +1,8 @@
+# Baseline agent version.
+name: v1-opus-5.5
+model: claude-opus-5-5
+effort: medium
+max_tokens: 16000
+system_prompt_file: system_v1.md
+fallbacks: true
+max_steps: 10
