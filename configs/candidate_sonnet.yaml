@@ -1,0 +1,8 @@
+# Candidate: same prompt and tools as v1, cheaper model. Compare with evals/compare.py before switching.
+name: cand-sonnet-5.5
+model: claude-sonnet-5-5
+effort: medium
+max_tokens: 16000
+system_prompt_file: system_v1.md
+fallbacks: true
+max_steps: 10

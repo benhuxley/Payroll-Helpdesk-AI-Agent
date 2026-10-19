@@ -26,7 +26,14 @@ class AgentSettings:
 
     @property
     def system_prompt(self) -> str:
-        return (PROMPTS_DIR / self.system_prompt_file).read_text(encoding="utf-8")
+        """The prompt file with the canonical pay rules inserted (the judge reads the same rules file)."""
+        template = (PROMPTS_DIR / self.system_prompt_file).read_text(encoding="utf-8")
+        return template.replace("{{PAY_RULES}}", pay_rules().strip())
+
+
+def pay_rules() -> str:
+    """The single source of truth for pay rules, shared by every prompt version and by the eval judge."""
+    return (PROMPTS_DIR / "pay_rules.md").read_text(encoding="utf-8")
 
 
 def load_settings(path: str | Path) -> AgentSettings:

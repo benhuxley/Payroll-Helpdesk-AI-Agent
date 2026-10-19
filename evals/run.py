@@ -84,7 +84,8 @@ def run_case(case, rep, settings, pristine_db: Path, run_dir: Path, llm, judge_c
     judge_scores = None
     if judge_client is not None and case.reference:
         try:
-            raw_turns = [{"user": t.user_text, "assistant": t.reply, "tools": [c.name for c in t.tool_calls]}
+            raw_turns = [{"user": t.user_text, "assistant": t.reply,
+                          "tools": [{"name": c.name, "input": c.input, "result": c.result} for c in t.tool_calls]}
                          for t in agent.turns]
             judge_scores = judge.judge(judge_client, judge_model, case.title, case.reference, raw_turns)
         except (anthropic.APIError, RuntimeError) as exc:
@@ -183,6 +184,9 @@ def main() -> int:
     (run_dir / "pristine.db").unlink(missing_ok=True)
 
     s = run["summary"]
+    if s["pass_rate"] is None:
+        console.print(f"\n[red]Every case errored ({s['errors']}); see {run_dir / 'errors.jsonl'}[/red]")
+        return 2
     console.print(f"\n[bold]pass rate {s['pass_rate']:.0%}[/bold] | guardrail violations "
                   f"{s['guardrail_violations']} | cost ${s['total_agent_cost_usd']:.2f} agent + "
                   f"${s['total_judge_cost_usd']:.2f} judge | results: {run_dir}")

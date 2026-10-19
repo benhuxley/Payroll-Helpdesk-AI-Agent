@@ -53,8 +53,8 @@
   judge:
     reference: >
       Finds 2 h overtime on Thu 8 Oct, approved by the manager on 13 Oct, after the timecard cutoff (Mon 12 Oct
-      10:00), so it wasn't in the 14 Oct pay. It will be paid in the next pay run on Wed 28 Oct: 2 h x $45.00 =
-      $90.00 at 150%. Not an error, so no handoff needed.
+      10:00), so it wasn't in the 14 Oct pay. It will be paid in the next pay run on Wed 28 Oct: 2 h at 150% of
+      his $30.00 base rate = $90.00. Not an error, so no handoff needed.
 
 - id: pay-public-holiday-worked
   title: Why was my pay higher? Public holiday worked at 250%
