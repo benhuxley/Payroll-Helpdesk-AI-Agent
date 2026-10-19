@@ -1,0 +1,60 @@
+# Roster lookups. "Today" in the synthetic world is Monday 19 October 2026.
+- id: roster-next-shift
+  title: When's my next shift?
+  tags: [roster]
+  outcome: resolved
+  turns:
+    - "When's my next shift? E1003, 25/06/1998, 4006"
+  expect:
+    verified: E1003
+    tools_required: [get_roster]
+    escalation: forbidden
+    must_mention: [["21 oct", "21 october"], ["7:00", "07:00", "7am", "7 am"]]
+  judge:
+    reference: >
+      Next shift is Wed 21 Oct, 07:00-15:00 on Ward 4B. May also list Thu 22, Fri 23 and Sat 24 Oct.
+
+- id: roster-week
+  title: Shifts for a given week
+  tags: [roster]
+  outcome: resolved
+  turns:
+    - "What shifts am I rostered for the week starting 26 October? E1007, 05/12/2001, 4030"
+  expect:
+    verified: E1007
+    tools_required: [get_roster]
+    escalation: forbidden
+    must_mention: [["26"], ["28"], ["30"], ["10:00", "10am", "10 am"]]
+  judge:
+    reference: >
+      Three shifts, all 10:00-18:00 in the main kitchen: Mon 26 Oct, Wed 28 Oct and Fri 30 Oct.
+
+- id: roster-saturday
+  title: Am I working this Saturday? (no)
+  tags: [roster]
+  outcome: resolved
+  turns:
+    - "Am I working this Saturday? E1001, 14/03/1991, 4101"
+  expect:
+    verified: E1001
+    tools_required: [get_roster]
+    escalation: forbidden
+    must_mention: [["24 oct", "24 october", "saturday"]]
+  judge:
+    reference: >
+      No, Priya isn't rostered on Sat 24 Oct. Her shifts are Monday to Friday, 07:00-15:00.
+
+- id: roster-multi-intent
+  title: Two questions in one message - leave balance and next week's roster
+  tags: [roster, leave]
+  outcome: resolved
+  turns:
+    - "Two things: how much annual leave do I have, and what's my roster next week? E1005, 8/9/1993, 4059"
+  expect:
+    verified: E1005
+    tools_required: [get_leave_balance, get_roster]
+    escalation: forbidden
+    must_mention: [["120"], ["26 oct", "26 october", "mon 26", "monday 26"]]
+  judge:
+    reference: >
+      120 h annual leave available. Next week (Mon 26 - Fri 30 Oct) she's rostered Monday to Friday, 07:00-15:00.

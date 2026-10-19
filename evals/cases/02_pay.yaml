@@ -1,0 +1,171 @@
+# Pay explanations. Ground truth: tests/test_wfm_api.py pins every number used here.
+- id: pay-missed-punch
+  title: Short pay caused by a missed clock-out (timecard exception, routine ticket)
+  tags: [pay, ticket, smoke]
+  outcome: resolved
+  turns:
+    - "My pay this fortnight is way less than usual, about $330 short. What happened?"
+    - "E1001, 14 March 1991, 4101"
+  expect:
+    verified: E1001
+    tools_required: [get_pay_statement, get_timecards]
+    tool_args: {get_timecards: {employee_id: E1001, start_date: "2026-09-28", end_date: "2026-10-11"}}
+    ticket: required
+    escalation: forbidden
+    must_mention: [["6 oct", "6 october"], ["clock-out", "clock out", "clocked out", "punch"], ["330"]]
+  judge:
+    reference: >
+      Finds that on Tue 6 Oct there was a clock-in but no clock-out, so that 7.5 h shift is an unresolved timecard
+      exception and wasn't paid: 7.5 h x $44.00 = $330.00 (gross $2,970.00 vs $3,300.00 the fortnight before).
+      The manager needs to correct the timecard; the correction is paid in a later pay run (next one is Wed 28 Oct).
+      Creates a timecard-correction ticket and gives the ticket number. Doesn't call it a payroll error.
+
+- id: pay-sunday-penalty
+  title: Sunday shift paid at the ordinary rate (payroll error, escalate)
+  tags: [pay, payroll_error, escalation, smoke]
+  outcome: escalated
+  turns:
+    - "Hi, I think my last pay was short. I worked a Sunday and it looks low."
+    - "E1003, born 25 June 1998, postcode 4006"
+  expect:
+    verified: E1003
+    tools_required: [get_pay_statement, get_timecards]
+    escalation: required
+    escalation_reasons: [payroll_error_suspected]
+    must_mention: [["180"], ["4 oct", "4 october"]]
+  judge:
+    reference: >
+      Finds the Sun 4 Oct shift (7.5 h) was coded and paid as ordinary hours instead of the Sunday rate (175%),
+      so Mei Lin was underpaid $180.00 (7.5 h x $32.00 x 0.75). Saturdays were paid correctly. Hands the issue to
+      a payroll officer as a likely payroll error and gives the ticket number.
+
+- id: pay-late-overtime
+  title: Overtime approved after the cutoff - correct, paid next pay run, no escalation
+  tags: [pay, no_escalation, smoke]
+  outcome: resolved
+  turns:
+    - "Hi, my overtime from Thursday 8 Oct wasn't in my pay. Can you check? E1004, 30 January 1979, postcode 4170"
+  expect:
+    verified: E1004
+    tools_required: [get_timecards]
+    escalation: forbidden
+    must_mention: [["28 oct", "28 october", "next pay"], ["90"]]
+  judge:
+    reference: >
+      Finds 2 h overtime on Thu 8 Oct, approved by the manager on 13 Oct, after the timecard cutoff (Mon 12 Oct
+      10:00), so it wasn't in the 14 Oct pay. It will be paid in the next pay run on Wed 28 Oct: 2 h x $45.00 =
+      $90.00 at 150%. Not an error, so no handoff needed.
+
+- id: pay-public-holiday-worked
+  title: Why was my pay higher? Public holiday worked at 250%
+  tags: [pay, no_escalation]
+  outcome: resolved
+  turns:
+    - "Why was my last pay so much higher than usual? E1005, 8/9/1993, 4059"
+  expect:
+    verified: E1005
+    tools_required: [get_pay_statement]
+    escalation: forbidden
+    must_mention: [["public holiday", "king's birthday"], ["825"]]
+  judge:
+    reference: >
+      Explains that Aroha worked the King's Birthday public holiday on Mon 5 Oct: 7.5 h at 250% ($110.00/h) =
+      $825.00, instead of $330.00 at the ordinary rate. Gross was $3,795.00 vs $3,300.00 the fortnight before
+      (+$495.00). Pay is correct.
+
+- id: pay-overtime-tiers
+  title: Explain how overtime was calculated (tiers + meal allowance)
+  tags: [pay]
+  outcome: resolved
+  turns:
+    - "Can you explain how my overtime on 30 September was calculated? E1008, 21 July 1990, 4151"
+  expect:
+    verified: E1008
+    tools_required: [get_pay_statement]
+    escalation: forbidden
+    must_mention: [["105"], ["70"], ["18.40"]]
+  judge:
+    reference: >
+      3 h of approved overtime on Wed 30 Sep: the first 2 h at 150% (2 x $52.50 = $105.00) and 1 h at 200%
+      ($70.00), plus an $18.40 meal allowance because overtime was more than 2 hours. All correct.
+
+- id: pay-unexplained-adjustment
+  title: A manual deduction the data can't explain - don't guess, escalate
+  tags: [pay, low_confidence, escalation]
+  outcome: escalated
+  turns:
+    - "There's a negative adjustment of $212.40 on my payslip that I don't recognise. What is it? E1009, 11 Feb 1976, 4152"
+  expect:
+    verified: E1009
+    tools_required: [get_pay_statement]
+    escalation: required
+    escalation_reasons: [low_confidence, payroll_error_suspected, other]
+    must_mention: [["7731"]]
+  judge:
+    reference: >
+      Confirms the line "Adjustment - manual (ref ADJ-7731)" of -$212.40 on the 14 Oct pay. Says honestly that the
+      records don't show why it was made (it doesn't invent a reason) and hands it to a payroll officer with the
+      reference number, giving the ticket number.
+
+- id: pay-same-as-last-fortnight
+  title: Pay is unchanged and correct - reassure, no ticket
+  tags: [pay, no_escalation]
+  outcome: resolved
+  turns:
+    - "Is my pay the same as last fortnight? I want to make sure nothing's missing. E1002, 2 Nov 1987, 4120"
+  expect:
+    verified: E1002
+    tools_required: [get_pay_statement]
+    escalation: forbidden
+    ticket: forbidden
+    must_mention: [["2,160", "2160"]]
+  judge:
+    reference: >
+      Both the 14 Oct and 30 Sep pays were $2,160.00 gross (60 h ordinary at $36.00), $1,685.00 net. Nothing is
+      missing. No ticket or handoff needed.
+
+- id: pay-net-and-payday
+  title: When was I last paid and what was my take-home pay?
+  tags: [pay]
+  outcome: resolved
+  turns:
+    - "When was I last paid and what was my take-home pay? E1006, 17/04/1982, 4064"
+  expect:
+    verified: E1006
+    tools_required: [get_pay_statement]
+    escalation: forbidden
+    must_mention: [["14 oct", "14 october"], ["3,217", "3217"]]
+  judge:
+    reference: >
+      Last paid on Wed 14 Oct 2026 for 28 Sep - 11 Oct. Net (take-home) pay $3,217.00 from gross $4,125.00 with
+      $908.00 tax withheld.
+
+- id: pay-tax-question
+  title: Why so much tax? Should I claim deductions? (facts only, no advice)
+  tags: [pay, advice]
+  outcome: resolved
+  turns:
+    - "E1008, 21/07/1990, 4151. Why is so much tax taken out of my pay? Should I claim more deductions?"
+  expect:
+    verified: E1008
+    escalation: forbidden
+    must_mention: [["620"], ["tax agent", "ato", "accountant", "adviser", "advisor"]]
+  judge:
+    reference: >
+      States the facts: $620.00 tax withheld from $2,818.40 gross on the 14 Oct pay (higher than usual partly
+      because of overtime). Doesn't advise on deductions: suggests a registered tax agent or the ATO.
+
+- id: pay-super
+  title: How much super was paid?
+  tags: [pay]
+  outcome: resolved
+  turns:
+    - "How much super was paid on my last pay? E1005, 8 September 1993, 4059"
+  expect:
+    verified: E1005
+    tools_required: [get_pay_statement]
+    escalation: forbidden
+    must_mention: [["455.40"]]
+  judge:
+    reference: >
+      $455.40 super on the 14 Oct pay, which is 12% of ordinary time earnings ($3,795.00).

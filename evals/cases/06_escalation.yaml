@@ -1,0 +1,94 @@
+# Escalation rules, in both directions: hand off when policy says so, and don't over-escalate.
+- id: esc-requests-human
+  title: Asks for a real person straight away
+  tags: [escalation, smoke]
+  outcome: escalated
+  turns:
+    - "I don't want to talk to a bot. Put me through to a real person please."
+  expect:
+    escalation: required
+    escalation_reasons: [user_requested_human]
+  judge:
+    reference: >
+      Hands off to a payroll officer without arguing, gives the ticket number and when they can expect contact.
+      Doesn't need identity verification to do that.
+
+- id: esc-angry-underpaid
+  title: Very angry user about an underpayment
+  tags: [escalation, payroll_error]
+  outcome: escalated
+  turns:
+    - "This is ridiculous, you've underpaid me AGAIN. Fix it now."
+    - "E1003, 25/06/1998, 4006"
+  expect:
+    escalation: required
+    escalation_reasons: [user_distressed, payroll_error_suspected]
+  judge:
+    reference: >
+      Acknowledges the frustration without being defensive and hands off to a payroll officer with a ticket number.
+      Once verified, may also explain the Sun 4 Oct shift was paid at the ordinary rate instead of 175% ($180.00
+      underpaid). Only one handoff.
+
+- id: esc-financial-hardship
+  title: Short pay causing hardship - urgent handoff
+  tags: [escalation]
+  outcome: escalated
+  turns:
+    - "E1001, 14/03/1991, 4101. My pay was $330 short and now I can't pay my rent this week."
+  expect:
+    verified: E1001
+    escalation: required
+    escalation_reasons: [user_distressed]
+  judge:
+    reference: >
+      Responds with empathy, explains the short pay came from the missed clock-out on Tue 6 Oct (7.5 h, $330.00),
+      and hands off urgently to a payroll officer (for example to consider an off-cycle payment), giving the
+      ticket number.
+
+- id: esc-mild-frustration
+  title: Mildly annoyed about late overtime - explain, don't escalate
+  tags: [escalation, no_escalation]
+  outcome: resolved
+  turns:
+    - "Bit annoying that my overtime is missing again. E1004, 30/01/1979, 4170. It was on Thu 8 Oct."
+  expect:
+    verified: E1004
+    escalation: forbidden
+    must_mention: [["28 oct", "28 october", "next pay"]]
+  judge:
+    reference: >
+      Acknowledges the annoyance briefly, then explains the 2 h overtime on Thu 8 Oct was approved after the
+      cutoff (13 Oct), so it will be paid on Wed 28 Oct ($90.00). No handoff needed.
+
+- id: esc-hardship-unverified
+  title: Hardship message before verification
+  tags: [escalation]
+  outcome: escalated
+  turns:
+    - "My pay didn't come through properly and I can't afford food for my kids this week. Please help."
+  expect:
+    escalation: required
+    escalation_reasons: [user_distressed]
+  judge:
+    reference: >
+      Responds kindly and hands off urgently to a payroll officer with a ticket number. May also offer to check the
+      pay if the user verifies, but the handoff happens straight away.
+
+- id: esc-pay-then-leave
+  title: Multi-turn - public holiday pay question, then a leave booking
+  tags: [pay, leave, write]
+  outcome: resolved
+  turns:
+    - "E1001, 14 March 1991, 4101. Was I paid for the King's Birthday public holiday?"
+    - "Great, thanks. Can you also book annual leave for Mon 23 and Tue 24 November?"
+    - "Yes please."
+  expect:
+    verified: E1001
+    leave_request_created: {leave_type: annual, start_date: "2026-11-23", end_date: "2026-11-24", hours: 15.0}
+    escalation: forbidden
+    must_mention: [["330"]]
+  judge:
+    reference: >
+      Yes: Priya was paid 7.5 h "public holiday not worked" for Mon 5 Oct at $44.00 = $330.00. Then previews annual
+      leave for Mon 23 - Tue 24 Nov (15 h), and after the user says yes, confirms it was submitted (LR-3001)
+      and is pending manager approval.
