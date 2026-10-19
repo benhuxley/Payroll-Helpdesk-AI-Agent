@@ -17,8 +17,8 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
           cache: pip
@@ -31,7 +31,7 @@ jobs:
           python -m evals.compare evals/results/baseline/results.json evals/results/ci-full/results.json --out comparison.md
           cat evals/results/ci-full/summary.md >> "$GITHUB_STEP_SUMMARY"
           cat comparison.md >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: full-eval-results
